@@ -45,7 +45,6 @@ class TemplateBase(object):
                 resp = self._templar.template(data, convert_bare=convert_bare)
             except AnsibleUndefinedVariable:
                 resp = None
-                pass
             finally:
                 self._templar.set_available_variables(tmp_avail_vars)
             return resp

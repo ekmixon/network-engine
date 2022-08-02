@@ -36,19 +36,21 @@ def dict_merge(base, other):
     if not isinstance(other, dict):
         raise AssertionError("`other` must be of type <dict>")
 
-    combined = dict()
+    combined = {}
 
     for key, value in iteritems(base):
         if isinstance(value, dict):
             if key in other:
                 item = other.get(key)
-                if item is not None:
-                    if isinstance(other[key], dict):
-                        combined[key] = dict_merge(value, other[key])
-                    else:
-                        combined[key] = other[key]
-                else:
+                if item is None:
                     combined[key] = item
+                else:
+                    combined[key] = (
+                        dict_merge(value, other[key])
+                        if isinstance(other[key], dict)
+                        else other[key]
+                    )
+
             else:
                 combined[key] = value
         elif isinstance(value, list):
@@ -64,18 +66,16 @@ def dict_merge(base, other):
                     combined[key] = item
             else:
                 combined[key] = value
-        else:
-            if key in other:
-                other_value = other.get(key)
-                if other_value is not None:
-                    if sort_list(base[key]) != sort_list(other_value):
-                        combined[key] = other_value
-                    else:
-                        combined[key] = value
-                else:
-                    combined[key] = other_value
+        elif key in other:
+            other_value = other.get(key)
+            if other_value is None:
+                combined[key] = other_value
+            elif sort_list(base[key]) != sort_list(other_value):
+                combined[key] = other_value
             else:
                 combined[key] = value
+        else:
+            combined[key] = value
 
     for key in set(other.keys()).difference(base.keys()):
         combined[key] = other.get(key)

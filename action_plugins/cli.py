@@ -100,7 +100,7 @@ class ActionModule(ActionBase):
         ''' handler for cli operations '''
 
         if task_vars is None:
-            task_vars = dict()
+            task_vars = {}
 
         result = super(ActionModule, self).run(tmp, task_vars)
         del tmp  # tmp no longer has any effect
@@ -149,7 +149,7 @@ class ActionModule(ActionBase):
                 'content': (json_data or output)
             }
             if engine == 'textfsm_parser':
-                new_task.args.update({'name': name})
+                new_task.args['name'] = name
 
             kwargs = {
                 'task': new_task,

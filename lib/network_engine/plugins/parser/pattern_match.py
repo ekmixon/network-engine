@@ -41,13 +41,11 @@ class ParserEngine(object):
             return self._match(content, regex)
 
     def _match_all(self, content, pattern):
-        match = self.re_matchall(pattern, content)
-        if match:
+        if match := self.re_matchall(pattern, content):
             return match
 
     def _match(self, content, pattern):
-        match = self.re_search(pattern, content)
-        return match
+        return self.re_search(pattern, content)
 
     def _match_greedy(self, content, start, end=None, match_all=None):
         """ Filter a section of the content text for matching
@@ -59,7 +57,7 @@ class ParserEngine(object):
 
         :returns: a list object of all matches
         """
-        section_data = list()
+        section_data = []
 
         if match_all:
             while True:
@@ -113,7 +111,7 @@ class ParserEngine(object):
         name = entry['name']
 
         context = entry.get('context', {})
-        context_data = list()
+        context_data = []
 
         if context:
             while True:
@@ -139,8 +137,7 @@ class ParserEngine(object):
     def re_search(self, regex, value):
         obj = {'matches': []}
         regex = re.compile(regex, re.M)
-        match = regex.search(value)
-        if match:
+        if match := regex.search(value):
             items = list(match.groups())
             if regex.groupindex:
                 for name, index in iteritems(regex.groupindex):
@@ -149,16 +146,12 @@ class ParserEngine(object):
         return obj
 
     def re_matchall(self, regex, value):
-        objects = list()
+        objects = []
         regex = re.compile(regex)
         for match in re.findall(regex.pattern, value, re.M):
-            obj = {}
-            obj['matches'] = match
+            obj = {'matches': match}
             if regex.groupindex:
                 for name, index in iteritems(regex.groupindex):
-                    if len(regex.groupindex) == 1:
-                        obj[name] = match
-                    else:
-                        obj[name] = match[index - 1]
+                    obj[name] = match if len(regex.groupindex) == 1 else match[index - 1]
             objects.append(obj)
         return objects

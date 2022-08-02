@@ -25,9 +25,8 @@ class TemplateEngine(TemplateBase):
 
             # FIXME moving to the plugin system breaks this
             when = item.get('when')
-            if when is not None:
-                if not self._check_conditional(when, variables):
-                    continue
+            if when is not None and not self._check_conditional(when, variables):
+                continue
 
             if 'value' in item:
                 value = item.get('value')
@@ -49,7 +48,7 @@ class TemplateEngine(TemplateBase):
             if items:
                 if loop:
                     if isinstance(loop_data, collections.Iterable) and not isinstance(loop_data, string_types):
-                        templated_value = list()
+                        templated_value = []
 
                         for loop_item in loop_data:
                             variables[loop_var] = loop_item
@@ -58,26 +57,22 @@ class TemplateEngine(TemplateBase):
                             else:
                                 templated_value.append(self.run(items, variables))
 
-                        if item_type == 'list':
-                            templated_items[key] = templated_value
-
-                        elif item_type == 'dict':
+                        if item_type == 'dict':
                             if key not in templated_items:
                                 templated_items[key] = {}
 
                             for t in templated_value:
                                 templated_items[key] = self._update(templated_items[key], t)
+                        elif item_type == 'list':
+                            templated_items[key] = templated_value
+
                     else:
                         templated_items[key] = []
 
                 else:
                     val = self.run(items, variables)
 
-                    if item_type == 'list':
-                        templated_value = [val]
-                    else:
-                        templated_value = val
-
+                    templated_value = [val] if item_type == 'list' else val
                     templated_items[key] = templated_value
 
             else:

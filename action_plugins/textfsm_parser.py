@@ -27,7 +27,7 @@ class ActionModule(ActionBase):
         ''' handler for textfsm action '''
 
         if task_vars is None:
-            task_vars = dict()
+            task_vars = {}
 
         result = super(ActionModule, self).run(tmp, task_vars)
         del tmp  # tmp no longer has any effect
@@ -42,13 +42,17 @@ class ActionModule(ActionBase):
                 content = self._task.args['content']
                 name = self._task.args.get('name')
             except KeyError as exc:
-                raise AnsibleError('missing required argument: %s' % exc)
+                raise AnsibleError(f'missing required argument: {exc}')
 
             if src and filename:
                 raise AnsibleError('`src` and `file` are mutually exclusive arguments')
 
             if not isinstance(content, string_types):
-                return {'failed': True, 'msg': '`content` must be of type str, got %s' % type(content)}
+                return {
+                    'failed': True,
+                    'msg': f'`content` must be of type str, got {type(content)}',
+                }
+
 
             if filename:
                 tmpl = open(filename)
@@ -66,15 +70,10 @@ class ActionModule(ActionBase):
 
             final_facts = []
             for item in fsm_results:
-                facts = {}
-                facts.update(dict(zip(re_table.header, item)))
+                facts = dict(dict(zip(re_table.header, item)))
                 final_facts.append(facts)
 
-            if name:
-                result['ansible_facts'] = {name: final_facts}
-            else:
-                result['ansible_facts'] = {}
-
+            result['ansible_facts'] = {name: final_facts} if name else {}
         finally:
             self._remove_tmp_path(self._connection._shell.tmpdir)
 

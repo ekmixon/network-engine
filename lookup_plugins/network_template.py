@@ -50,68 +50,65 @@ class LookupModule(LookupBase):
     def run(self, terms, variables, **kwargs):
         self.ds = variables.copy()
 
-        config_lines = list()
+        config_lines = []
 
         for term in to_list(terms[0]):
-            display.debug("File lookup term: %s" % term)
+            display.debug(f"File lookup term: {term}")
 
             lookupfile = self.find_file_in_search_path(variables, 'templates', term)
-            display.vvvv("File lookup using %s as file" % lookupfile)
+            display.vvvv(f"File lookup using {lookupfile} as file")
 
-            if lookupfile:
-                with open(to_bytes(lookupfile, errors='surrogate_or_strict'), 'rb'):
-                    tasks = self._loader.load_from_file(lookupfile)
+            if not lookupfile:
+                raise AnsibleError(
+                    f"the template file {term} could not be found for the lookup"
+                )
 
-                    for task in tasks:
-                        task.pop('name', None)
-                        register = task.pop('register', None)
 
-                        when = task.pop('when', None)
-                        if when is not None:
-                            if not self._check_conditional(when, self.ds):
-                                display.vvv('skipping task due to conditional check failure')
-                                continue
+            with open(to_bytes(lookupfile, errors='surrogate_or_strict'), 'rb'):
+                tasks = self._loader.load_from_file(lookupfile)
 
-                        loop = task.pop('loop', None)
+                for task in tasks:
+                    task.pop('name', None)
+                    register = task.pop('register', None)
 
-                        if loop:
-                            loop = self.template(loop, self.ds)
-                            loop_result = list()
+                    when = task.pop('when', None)
+                    if when is not None and not self._check_conditional(
+                        when, self.ds
+                    ):
+                        display.vvv('skipping task due to conditional check failure')
+                        continue
 
-                            if isinstance(loop, Mapping):
-                                for loop_key, loop_value in iteritems(loop):
-                                    self.ds['item'] = {'key': loop_key, 'value': loop_value}
-                                    res = self._process_directive(task)
-                                    if res:
-                                        loop_result.extend(to_list(res))
+                    if loop := task.pop('loop', None):
+                        loop = self.template(loop, self.ds)
+                        loop_result = []
 
-                            elif isinstance(loop, collections.Iterable) and not isinstance(loop, string_types):
-                                for loop_item in loop:
-                                    self.ds['item'] = loop_item
-                                    res = self._process_directive(task)
-                                    if res:
-                                        loop_result.extend(to_list(res))
+                        if isinstance(loop, Mapping):
+                            for loop_key, loop_value in iteritems(loop):
+                                self.ds['item'] = {'key': loop_key, 'value': loop_value}
+                                if res := self._process_directive(task):
+                                    loop_result.extend(to_list(res))
 
-                            config_lines.extend(loop_result)
+                        elif isinstance(loop, collections.Iterable) and not isinstance(loop, string_types):
+                            for loop_item in loop:
+                                self.ds['item'] = loop_item
+                                if res := self._process_directive(task):
+                                    loop_result.extend(to_list(res))
 
-                            if register:
-                                self.ds[register] = loop_result
+                        config_lines.extend(loop_result)
 
-                        else:
-                            res = self._process_directive(task)
-                            if res:
-                                config_lines.extend(to_list(res))
-                                if register:
-                                    self.ds[register] = res
+                        if register:
+                            self.ds[register] = loop_result
 
-            else:
-                raise AnsibleError("the template file %s could not be found for the lookup" % term)
+                    elif res := self._process_directive(task):
+                        config_lines.extend(to_list(res))
+                        if register:
+                            self.ds[register] = res
 
         return [to_text('\n'.join(config_lines)).strip()]
 
     def do_context(self, block):
 
-        results = list()
+        results = []
 
         for entry in block:
             task = entry.copy()
@@ -119,66 +116,54 @@ class LookupModule(LookupBase):
             task.pop('register', None)
 
             when = task.pop('when', None)
-            if when is not None:
-                if not self._check_conditional(when, self.ds):
-                    display.vvv('skipping context due to conditional check failure')
-                    continue
+            if when is not None and not self._check_conditional(when, self.ds):
+                display.vvv('skipping context due to conditional check failure')
+                continue
 
             loop = task.pop('loop', None)
             if loop:
                 loop = self.template(loop, self.ds)
 
             if 'context' in task:
-                res = self.do_context(task['context'])
-                if res:
+                if res := self.do_context(task['context']):
                     results.extend(res)
 
             elif isinstance(loop, Mapping):
-                loop_result = list()
+                loop_result = []
                 for loop_key, loop_value in iteritems(loop):
                     self.ds['item'] = {'key': loop_key, 'value': loop_value}
                     loop_result.extend(to_list(self._process_directive(task)))
                 results.extend(loop_result)
 
             elif isinstance(loop, collections.Iterable) and not isinstance(loop, string_types):
-                loop_result = list()
+                loop_result = []
                 for loop_item in loop:
                     self.ds['item'] = loop_item
                     loop_result.extend(to_list(self._process_directive(task)))
                 results.extend(loop_result)
 
-            else:
-                res = self._process_directive(task)
-                if res:
-                    results.extend(to_list(res))
+            elif res := self._process_directive(task):
+                results.extend(to_list(res))
 
         return results
 
     def _process_directive(self, task):
         for directive, args in iteritems(task):
-            if directive == 'context':
-                meth = getattr(self, 'do_%s' % directive)
-                if meth:
-                    return meth(args)
-            else:
-                meth = getattr(self, 'do_%s' % directive)
-                if meth:
-                    return meth(**args)
+            if meth := getattr(self, f'do_{directive}'):
+                return meth(args) if directive == 'context' else meth(**args)
 
     def do_lines_template(self, template, join=False, when=None, required=False):
-        templated_lines = list()
-        _processed = list()
+        templated_lines = []
+        _processed = []
 
-        if when is not None:
-            if not self._check_conditional(when, self.ds):
-                display.vvv("skipping due to conditional failure")
-                return templated_lines
+        if when is not None and not self._check_conditional(when, self.ds):
+            display.vvv("skipping due to conditional failure")
+            return templated_lines
 
         for line in to_list(template):
-            res = self.template(line, self.ds)
-            if res:
+            if res := self.template(line, self.ds):
                 _processed.append(res)
-            elif not res and join:
+            elif join:
                 break
 
         if required and not _processed:
@@ -197,15 +182,13 @@ class LookupModule(LookupBase):
         src = self.template(include, variables)
         source = self._find_needle('templates', src)
 
-        when = item.get('when')
-
-        if when:
+        if when := item.get('when'):
             conditional = "{%% if %s %%}True{%% else %%}False{%% endif %%}"
             if not self.template(conditional % when, variables, fail_on_undefined=False):
                 display.vvvvv("include '%s' skipped due to conditional check failure" % name)
                 return []
 
-        display.display('including file %s' % source)
+        display.display(f'including file {source}')
         include_data = self._loader.load_from_file(source)
 
         template_data = item.copy()

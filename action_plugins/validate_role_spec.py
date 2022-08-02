@@ -62,7 +62,7 @@ class ActionModule(ActionBase):
         ''' handler for cli operations '''
 
         if task_vars is None:
-            task_vars = dict()
+            task_vars = {}
 
         result = super(ActionModule, self).run(tmp, task_vars)
         del tmp  # tmp no longer has any effect
@@ -75,8 +75,8 @@ class ActionModule(ActionBase):
         if not spec:
             raise AnsibleModuleError('missing required argument: spec')
 
-        spec_fp = os.path.join(task_vars['role_path'], 'meta/%s' % spec)
-        display.vvv('using role spec %s' % spec_fp)
+        spec_fp = os.path.join(task_vars['role_path'], f'meta/{spec}')
+        display.vvv(f'using role spec {spec_fp}')
         spec = self._loader.load_from_file(spec_fp)
 
         if 'argument_spec' not in spec:
@@ -107,14 +107,12 @@ class ActionModule(ActionBase):
             if attrs is None:
                 spec[key] = {'type': 'str'}
             elif isinstance(attrs, dict):
-                suboptions_spec = attrs.get('options')
-                if suboptions_spec:
-                    args[key] = dict()
+                if suboptions_spec := attrs.get('options'):
+                    args[key] = {}
                     self._handle_options(task_vars, args[key], suboptions_spec)
             if key in task_vars:
                 if isinstance(task_vars[key], string_types):
-                    value = self._templar.do_template(task_vars[key])
-                    if value:
+                    if value := self._templar.do_template(task_vars[key]):
                         args[key] = value
                 else:
                     args[key] = task_vars[key]

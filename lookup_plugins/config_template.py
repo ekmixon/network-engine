@@ -39,10 +39,11 @@ class LookupModule(LookupBase):
         ret = super(LookupModule, self).run(terms, variables, **kwargs)
 
         omit = variables['omit']
-        filtered = list()
+        filtered = [
+            line
+            for line in ret[0].split('\n')
+            if all((line, omit not in line, not line.startswith('!')))
+        ]
 
-        for line in ret[0].split('\n'):
-            if all((line, omit not in line, not line.startswith('!'))):
-                filtered.append(line)
 
         return [filtered]

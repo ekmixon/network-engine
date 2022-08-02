@@ -83,8 +83,6 @@ class LookupModule(LookupBase):
 
     def run(self, terms, variables, **kwargs):
 
-        ret = []
-
         try:
             want = terms[0]
         except IndexError:
@@ -98,12 +96,18 @@ class LookupModule(LookupBase):
         match = kwargs.get('match', 'line')
         if match not in MATCH_CHOICES:
             choices_str = ", ".join(MATCH_CHOICES)
-            raise AnsibleError("value of match must be one of: %s, got: %s" % (choices_str, match))
+            raise AnsibleError(
+                f"value of match must be one of: {choices_str}, got: {match}"
+            )
+
 
         replace = kwargs.get('replace', 'line')
         if replace not in REPLACE_CHOICES:
             choices_str = ", ".join(REPLACE_CHOICES)
-            raise AnsibleError("value of replace must be one of: %s, got: %s" % (choices_str, replace))
+            raise AnsibleError(
+                f"value of replace must be one of: {choices_str}, got: {replace}"
+            )
+
 
         indent = int(kwargs.get('indent', 1))
         ignore_lines = kwargs.get('ignore_lines')
@@ -114,6 +118,4 @@ class LookupModule(LookupBase):
         configobjs = candidate_obj.difference(running_obj, match=match, replace=replace)
 
         diff = dumps(configobjs, output='commands')
-        ret.append(diff)
-
-        return ret
+        return [diff]

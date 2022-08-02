@@ -14,30 +14,30 @@ from ansible.errors import AnsibleFilterError
 def interface_split(interface, key=None):
     match = re.match(r'([A-Za-z\-]*)(.+)', interface)
     if not match:
-        raise AnsibleFilterError('unable to parse interface %s' % interface)
-    obj = {'name': match.group(1), 'index': match.group(2)}
-    if key:
-        return obj[key]
-    else:
-        return obj
+        raise AnsibleFilterError(f'unable to parse interface {interface}')
+    obj = {'name': match[1], 'index': match[2]}
+    return obj[key] if key else obj
 
 
 def interface_range(interface):
     if not isinstance(interface, string_types):
-        raise AnsibleFilterError('value must be of type string, got %s' % type(interface))
+        raise AnsibleFilterError(
+            f'value must be of type string, got {type(interface)}'
+        )
+
 
     parts = interface.rpartition('/')
     if parts[1]:
-        prefix = '%s/' % parts[0]
+        prefix = f'{parts[0]}/'
         index = parts[2]
     else:
         match = re.match(r'([A-Za-z]*)(.+)', interface)
         if not match:
-            raise AnsibleFilterError('unable to parse interface %s' % interface)
-        prefix = match.group(1)
-        index = match.group(2)
+            raise AnsibleFilterError(f'unable to parse interface {interface}')
+        prefix = match[1]
+        index = match[2]
 
-    indicies = list()
+    indicies = []
 
     for item in index.split(','):
         tokens = item.split('-')
@@ -51,7 +51,7 @@ def interface_range(interface):
                 indicies.append(i)
                 i += 1
 
-    return ['%s%s' % (prefix, index) for index in indicies]
+    return [f'{prefix}{index}' for index in indicies]
 
 
 def _gen_ranges(vlan):
@@ -59,7 +59,7 @@ def _gen_ranges(vlan):
     for i in sorted(vlan):
         if s is None:
             s = e = i
-        elif i == e or i == e + 1:
+        elif i in [e, e + 1]:
             e = i
         else:
             yield (s, e)
@@ -70,21 +70,21 @@ def _gen_ranges(vlan):
 
 def vlan_compress(vlan):
     if not isinstance(vlan, list):
-        raise AnsibleFilterError('value must be of type list, got %s' % type(vlan))
+        raise AnsibleFilterError(f'value must be of type list, got {type(vlan)}')
 
     return (','.join(['%d' % s if s == e else '%d-%d' % (s, e) for (s, e) in _gen_ranges(vlan)]))
 
 
 def vlan_expand(vlan):
     if not isinstance(vlan, string_types):
-        raise AnsibleFilterError('value must be of type string, got %s' % type(vlan))
+        raise AnsibleFilterError(f'value must be of type string, got {type(vlan)}')
 
     match = re.match(r'([A-Za-z]*)(.+)', vlan)
     if not match:
-        raise AnsibleFilterError('unable to parse vlan %s' % vlan)
+        raise AnsibleFilterError(f'unable to parse vlan {vlan}')
 
-    index = match.group(2)
-    indices = list()
+    index = match[2]
+    indices = []
 
     for item in index.split(','):
         tokens = item.split('-')

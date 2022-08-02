@@ -45,24 +45,23 @@ class LookupModule(LookupBase):
 
     def run(self, terms, variables, **kwargs):
 
-        ret = list()
+        ret = []
 
         self.ds = variables.copy()
         self.template = template_loader.get('json_template', self._templar)
 
-        display.debug("File lookup term: %s" % terms[0])
+        display.debug(f"File lookup term: {terms[0]}")
 
         lookupfile = self.find_file_in_search_path(variables, 'files', terms[0])
-        display.vvvv("File lookup using %s as file" % lookupfile)
+        display.vvvv(f"File lookup using {lookupfile} as file")
         try:
             if lookupfile:
                 with open(to_bytes(lookupfile, errors='surrogate_or_strict'), 'rb') as f:
-                    json_data = list()
-                    json_data.append(json.load(f))
+                    json_data = [json.load(f)]
                     ret.append(self.template.run(json_data, self.ds))
             else:
                 raise AnsibleParserError()
         except AnsibleParserError:
-            raise AnsibleError("could not locate file in lookup: %s" % terms[0])
+            raise AnsibleError(f"could not locate file in lookup: {terms[0]}")
 
         return ret
